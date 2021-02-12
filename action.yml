@@ -21,8 +21,8 @@ runs:
       shell: bash
 
     # Composite Steps do not support Docker
-    # - runs:
-    #   using: 'docker'
-    #   image: 'sweets/cfn_nag/Dockerfile'
-    #     args:
-    #       - ${{ inputs.who-to-greet }}
+    - runs:
+      using: 'docker'
+      image: 'sweets/cfn_nag/Dockerfile'
+        args:
+          - ${{ inputs.who-to-greet }}
