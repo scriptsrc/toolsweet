@@ -10,5 +10,12 @@ jobs:
       uses: ./ # Uses an action in the root directory
       with:
         who-to-greet: 'Mona the Octocat'
+        
+        # (Required) The GitHub API token to create reviews with
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+        # Fail if "new" violations detected or "any", default "new"
+        failIf: new
+
     - run: echo random-number ${{ steps.foo.outputs.random-number }}
       shell: bash
