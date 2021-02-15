@@ -5,6 +5,13 @@ inputs:
     description: 'Who to greet'
     required: true
     default: 'World'
+  token:
+    description: The GitHub API token to use for creating PR reviews
+    required: true
+  failIf:
+    description: Fail if *any* violations are detected or only *new* ones (valid values are "new" or "any")
+    required: false
+    default: new
 outputs:
   random-number:
     description: "Random number"
@@ -19,10 +26,11 @@ runs:
       shell: bash
     - run: ${{ github.action_path }}/goodbye.sh
       shell: bash
-
-    # Composite Steps do not support Docker
-    - run:
-      using: 'docker'
-      image: 'sweets/cfn_nag/Dockerfile'
-      args:
-        - ${{ inputs.who-to-greet }}
+    - run: sudo apt-get install python3-setuptools
+      shell: bash
+    - run: python3 -m venv .venv
+      shell: bash
+    - run: source .venv/bin/activate && pip3 install bandit ttam-lintly
+      shell: bash
+    - run: source .venv/bin/activate && bandit -r . --format=json | lintly --api-key ${{ inputs.token }} --fail-on ${{ inputs.failIf }} --log --no-post-status --format=bandit-json
+      shell: bash
