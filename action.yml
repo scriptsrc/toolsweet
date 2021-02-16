@@ -32,5 +32,5 @@ runs:
       shell: bash
     - run: source .venv/bin/activate && pip3 install bandit ttam-lintly
       shell: bash
-    - run: source .venv/bin/activate && bandit -r . --format=json --exclude=.venv/ | lintly --api-key ${{ inputs.token }} --fail-on ${{ inputs.failIf }} --log --no-post-status --format=bandit-json
+    - run: source .venv/bin/activate && bandit -r . --format=json --exclude=./.venv/| lintly --api-key ${{ inputs.token }} --fail-on ${{ inputs.failIf }} --log --no-post-status --format=bandit-json
       shell: bash
