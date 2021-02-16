@@ -1,9 +1,9 @@
-on: [push]
+on: [pull_request]
 
 jobs:
-  hello_world_job:
+  bandit_lintly:
     runs-on: ubuntu-latest
-    name: A job to say hello
+    name: Bandit and then Lintly
     steps:
     - uses: actions/checkout@v2
     - id: foo
