@@ -48,7 +48,7 @@ jobs:
       # Run Linter against code base #
       ################################
       - name: Lint Code Base
-        uses: scriptsrc/super-linter@main
+        uses: scriptsrc/super-linter@master
         env:
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_PYTHON_FLAKE8: true
