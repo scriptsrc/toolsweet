@@ -41,3 +41,5 @@ a()("SELECT %s FROM foo" % val)
 # real world false positives
 choices=[('server_list', _("Select from active instances"))]
 print("delete from the cache as the first argument")
+
+# 123
