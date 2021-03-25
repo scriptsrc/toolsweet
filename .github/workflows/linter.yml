@@ -60,3 +60,5 @@ jobs:
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTLY_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          LINTLY_FAIL_ON: any 
+
