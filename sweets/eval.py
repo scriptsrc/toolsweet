@@ -31,3 +31,4 @@ Test().eval()
 # test 1004
 # test 1005
 # test 1006
+# test 1007
