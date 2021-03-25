@@ -48,11 +48,11 @@ jobs:
       # Run Linter against code base #
       ################################
       - name: Lint Code Base
-        uses: scriptsrc/super-linter@add_lintly
+        uses: scriptsrc/super-linter@add_bandit
         env:
           VALIDATE_ALL_CODEBASE: true
-          OUTPUT_FORMAT: tap
           VALIDATE_PYTHON_FLAKE8: true
+          VALIDATE_PYTHON_BANDIT: true
           VALIDATE_PYTHON_BLACK: true
           VALIDATE_PYTHON_PYLINT: true
           VALIDATE_DOCKERFILE_HADOLINT: true
