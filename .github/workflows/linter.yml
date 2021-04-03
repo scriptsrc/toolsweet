@@ -63,4 +63,6 @@ jobs:
           LINTLY_API_KEY: ${{ secrets.GITHUB_TOKEN }}
           LINTLY_FAIL_ON: any 
           OUTPUT_MODE: lintly
+          ACTIONS_RUNNER_DEBUG: true
+          LOG_LEVEL: DEBUG
 
