@@ -48,7 +48,8 @@ jobs:
       # Run Linter against code base #
       ################################
       - name: Lint Code Base
-        uses: scriptsrc/super-linter@add_bandit
+        # uses: scriptsrc/super-linter@add_bandit
+        uses: 23andMe/super-linter@add-bandit
         env:
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_PYTHON_FLAKE8: true
