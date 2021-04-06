@@ -49,7 +49,7 @@ jobs:
       ################################
       - name: Lint Code Base
         # uses: scriptsrc/super-linter@add_bandit
-        uses: 23andMe/super-linter@add-bandit
+        uses: 23andMe/super-linter@add-terrascan
         env:
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_PYTHON_FLAKE8: true
@@ -58,6 +58,7 @@ jobs:
           VALIDATE_PYTHON_PYLINT: true
           VALIDATE_DOCKERFILE_HADOLINT: true
           VALIDATE_CLOUDFORMATION: true
+          VALIDATE_TERRAFORM_TERRASCAN: true
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTLY_API_KEY: ${{ secrets.GITHUB_TOKEN }}
