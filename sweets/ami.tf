@@ -2,6 +2,7 @@
 # Should cause terrascan to complain
 # 123
 # 345
+# 234
 
 provider "aws" {
   region = "us-west-2"
