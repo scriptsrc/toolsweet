@@ -59,6 +59,7 @@ jobs:
           VALIDATE_DOCKERFILE_HADOLINT: true
           VALIDATE_CLOUDFORMATION: true
           VALIDATE_TERRAFORM_TERRASCAN: true
+          VALIDATE_TERRAFORM_TFSEC: true
           VALIDATE_GITLEAKS: true
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
