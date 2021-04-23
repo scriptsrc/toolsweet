@@ -49,7 +49,7 @@ jobs:
       ################################
       - name: Lint Code Base
         # uses: scriptsrc/super-linter@add_bandit
-        uses: 23andMe/super-linter@SEC-1457-adding-tfsec
+        uses: 23andMe/super-linter@SEC-add-cfn-nag-superlinter
         env:
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_PYTHON_FLAKE8: true
@@ -61,6 +61,7 @@ jobs:
           VALIDATE_TERRAFORM_TERRASCAN: true
           VALIDATE_TERRAFORM_TFSEC: true
           VALIDATE_GITLEAKS: true
+          VALIDATE_CLOUDFORMATION_CFN_NAG: true
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTLY_API_KEY: ${{ secrets.GITHUB_TOKEN }}
