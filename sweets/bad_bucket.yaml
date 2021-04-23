@@ -1,0 +1,16 @@
+---
+Resources:
+  # From cfn-lint bad examples
+  MyBucket:
+     ype: AWS::S3::Buckets
+
+  # from https://github.com/stelligent/cfn_nag/tree/master/spec/test_templates/yaml/batch
+  BatchJobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      ContainerProperties:
+        Memory: 512
+        Privileged: true
+        Vcpus: 1
+        Image: amazon/amazon-ecs-agent
