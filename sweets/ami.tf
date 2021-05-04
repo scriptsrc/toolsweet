@@ -6,15 +6,8 @@
 # 111
 # 222
 
-provider "aws" {
-  region = "us-west-2"
-}
-
-resource "aws_ami" "awsAmiEncrypted" {
-  name                = "some-name"
-
-  ebs_block_device {
-    device_name = "dev-name"
-    encrypted = "false"
-  }
+resource "aws_cloudwatch_log_group" "apache_bad" {
+  name              = "apache[${count.index + 1}]"
+  count             = "2"
+  retention_in_days = 15
 }
