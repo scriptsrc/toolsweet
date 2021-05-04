@@ -49,7 +49,7 @@ jobs:
       ################################
       - name: Lint Code Base
         # uses: scriptsrc/super-linter@add_bandit
-        uses: 23andMe/super-linter@SEC-add-cfn-nag-superlinter
+        uses: 23andMe/super-linter@master
         env:
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_PYTHON_FLAKE8: true
