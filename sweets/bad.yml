@@ -1,0 +1,293 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Stack to create an S3 bucket and access roles
+
+
+Parameters:
+  Account:
+    Type: String
+
+  BackfillPrincipal:
+    Type: String
+    Default: ""
+
+  Encryption:
+    Type: String
+    AllowedValues:
+    - "KMS"
+    - "SSE-S3"
+    Default: "SSE-S3"
+
+  ExpirationInDays:
+    Type: Number
+    Default: 30
+
+  OrgAccessList:
+    Type: CommaDelimitedList
+    Default: ""
+
+  ProjectName:
+    Type: String
+
+  ReplSrcAcct:
+    Type: String
+
+  ReplSrcRole:
+    Type: String
+    Default: ""
+
+  Versioning:
+    Type: String
+    Default: "Enabled"
+    AllowedValues:
+    - "Enabled"
+
+
+Conditions:
+  AllowOrgWideAccess: !Not [!Equals [!Join ["", !Ref OrgAccessList], ""]]
+  EncryptWithKms: !Equals [!Ref Encryption, "KMS"]
+  HasReplSrcRole: !Not [!Equals [!Ref ReplSrcRole, ""]]
+  HasBackfillPrincipal: !Not [!Equals [!Ref BackfillPrincipal, ""]]
+  ExpireNoncurrent: !Not [!Equals [!Ref ExpirationInDays, 0]]
+
+Resources:
+  EncryptionKey:
+    Type: AWS::KMS::Key
+    Condition: EncryptWithKms
+    Properties:
+      Description: !Sub "Encryption Key for ${Account}-${ProjectName} bucket"
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+            # https://aws.amazon.com/premiumsupport/knowledge-center/update-key-policy-future/
+            # the first statement below disables the key lockout check
+          - Sid: "Allow IAM permissions in archive"
+            Effect: Allow
+            Action:
+              - "kms:*"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Resource: "*"
+
+            # NOTE Encryption of large files requires decrypt permissions:
+            #      https://aws.amazon.com/premiumsupport/knowledge-center/s3-large-file-encryption-kms-key/
+          - Sid: "Allow encryption by replication role"
+            Effect: Allow
+            Action:
+              - "kms:Encrypt"
+              - "kms:Decrypt"
+              - "kms:GenerateDataKey"
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${ReplSrcAcct}:role/service-role/${ReplSrcRole}"
+                - !If
+                  - HasBackfillPrincipal
+                  - !Ref BackfillPrincipal
+                  - !Ref AWS::NoValue
+            Resource: "*"
+            Condition:
+              StringLike:
+                kms:ViaService: !Sub "s3.${AWS::Region}.amazonaws.com"
+                kms:EncryptionContext:aws:s3:arn: !Sub "arn:aws:s3:::${Account}-${ProjectName}/*"
+
+          - !If
+            - AllowOrgWideAccess
+            - Sid: "Allow decrypt to all in the Organization"
+              Effect: Allow
+              Action:
+                - "kms:Decrypt"
+              Principal: "*"
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  aws:PrincipalOrgID: !Ref OrgAccessList
+            - !Ref AWS::NoValue
+
+  EncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Condition: EncryptWithKms
+    Properties:
+      AliasName: !Sub "alias/${ProjectName}/key"
+      TargetKeyId: !Ref EncryptionKey
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - W35  # We do not log replica bucket activity
+    DeletionPolicy: "Retain"  # The policy has to be a string, is non-trivial to parametrize. Another option is "Delete".
+    UpdateReplacePolicy: "Retain"
+    Properties:
+      AccessControl: Private
+
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID: !If [EncryptWithKms, !Ref EncryptionKey, !Ref "AWS::NoValue"]
+              SSEAlgorithm: !If [EncryptWithKms, "aws:kms", "AES256"]
+
+      BucketName: !Sub "${Account}-${ProjectName}"
+
+      LifecycleConfiguration:
+        Rules:
+          - AbortIncompleteMultipartUpload:  #Removes incomplete multipart uploads 7 days after initiation if not completed
+              DaysAfterInitiation: 7
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: !If
+              - ExpireNoncurrent
+              - !Ref ExpirationInDays
+              - !Ref AWS::NoValue
+
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+
+      VersioningConfiguration:
+        Status: !Ref Versioning
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Statement:
+          - Sid: "Force secure transport"
+            # https://aws.amazon.com/blogs/security/how-to-use-bucket-policies-and-apply-defense-in-depth-to-help-secure-your-amazon-s3-data/
+            Effect: Deny
+            Action:
+              - "s3:*"
+            Principal: "*"
+            Resource:
+              - !Sub "arn:aws:s3:::${Bucket}"
+              - !Sub "arn:aws:s3:::${Bucket}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+          - Sid: AllowReplication
+            Effect: Allow
+            Action:
+              - s3:GetBucketVersioning
+              - s3:GetObjectVersionTagging
+              - s3:ObjectOwnerOverrideToBucketOwner
+              - s3:ReplicateDelete
+              - s3:ReplicateObject
+              - s3:ReplicateTags
+            Principal:
+              AWS: !If
+                - HasReplSrcRole
+                - !Sub "arn:aws:iam::${ReplSrcAcct}:role/service-role/${ReplSrcRole}"
+                - !Sub "arn:aws:iam::${ReplSrcAcct}:root"
+            Resource:
+              - !Sub "arn:aws:s3:::${Bucket}"
+              - !Sub "arn:aws:s3:::${Bucket}/*"
+
+          - !If
+            - HasBackfillPrincipal
+            - Sid: "Allow backfill principal to list and get objects"
+              Effect: Allow
+              Action:
+                - s3:GetObject*
+                - s3:ListBucket*
+              Principal:
+                AWS: !Ref BackfillPrincipal
+              Resource:
+                - !Sub "arn:aws:s3:::${Bucket}"
+                - !Sub "arn:aws:s3:::${Bucket}/*"
+            - !Ref AWS::NoValue
+
+          - !If
+            - HasBackfillPrincipal
+            - Sid: "Allow backfill principal to put objects"
+              Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectAcl
+              Principal:
+                AWS: !Ref BackfillPrincipal
+              Resource:
+                - !Sub "arn:aws:s3:::${Bucket}/*"
+              Condition:
+                StringEquals:
+                  "s3:x-amz-acl": "bucket-owner-full-control"
+            - !Ref AWS::NoValue
+
+          - !If
+            - EncryptWithKms
+            - Sid: "Deny PutObject using non-default encryption key"
+              # NOTE This statement applies to manual backfills. Bucket replication does not perform `s3:PutObject`.
+              Effect: Deny
+              Action:
+                - s3:PutObject
+              Principal: "*"
+              Resource:
+                - !Sub "arn:aws:s3:::${Bucket}/*"
+              Condition:
+                StringNotEquals:
+                  s3:x-amz-server-side-encryption-aws-kms-key-id: !GetAtt EncryptionKey.Arn
+            - !Ref AWS::NoValue
+
+          - !If
+            - EncryptWithKms
+            - Sid: "Deny replication using non-default encryption key"
+              Effect: Deny
+              Action:
+                - s3:ReplicateObject
+              Principal: "*"
+              Resource:
+                - !Sub "arn:aws:s3:::${Bucket}/*"
+              Condition:
+                # NOTE `s3:ReplicateObject` is two actions in one, ReplicateObject and ReplicateTags.
+                #      The later does not have the encryption conditional and would fail to replicate tags
+                #      without the first ('Null') condition.
+                'Null':
+                  s3:x-amz-server-side-encryption-aws-kms-key-id: false
+                StringNotEquals:
+                  s3:x-amz-server-side-encryption-aws-kms-key-id: !GetAtt EncryptionKey.Arn
+            - Sid: "Deny encryption with any KMS key"
+              Effect: Deny
+              Action:
+                - s3:PutObject
+                - s3:ReplicateObject
+              Principal: "*"
+              Resource:
+                - !Sub "arn:aws:s3:::${Bucket}/*"
+              Condition:
+                'Null':
+                  s3:x-amz-server-side-encryption-aws-kms-key-id: false
+
+          - !If
+            - AllowOrgWideAccess
+            - Sid: "Allow organizations accounts to get objects"
+              # only use this statement when buckets are to be shared organization-wide
+              Effect: Allow
+              Action: "s3:GetObject*"
+              Principal: "*"
+              Resource: !Sub "arn:aws:s3:::${Account}-${ProjectName}/*"
+              Condition:
+                StringEquals:
+                  aws:PrincipalOrgID: !Ref OrgAccessList
+            - !Ref AWS::NoValue
+
+          - !If
+            - AllowOrgWideAccess
+            - Sid: "Allow organization accounts to list the bucket"
+              # only use this statement when buckets are to be shared organization-wide
+              Effect: Allow
+              Action: "s3:ListBucket"
+              Principal: "*"
+              Resource: !Sub "arn:aws:s3:::${Account}-${ProjectName}"
+              Condition:
+                StringEquals:
+                  aws:PrincipalOrgID: !Ref OrgAccessList
+            - !Ref AWS::NoValue
+            
